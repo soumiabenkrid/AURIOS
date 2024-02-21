@@ -1,0 +1,12 @@
+black
+flake8
+gensim
+gym
+isort
+numpy
+opencv-python
+pandas
+psycopg2-binary
+scikit-learn
+tensorboard
+tensorflow
