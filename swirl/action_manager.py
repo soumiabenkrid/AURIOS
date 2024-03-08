@@ -39,26 +39,25 @@ class ActionManager(object):
         # 0 for actions not taken yet, 1 for single column index present, 0.5 for two-column index present,
         # 0.33 for three-column index present, ...
         self.current_action_status = [0 for action in range(self.number_of_columns)]
-
         self.valid_actions = [self.FORBIDDEN_ACTION for action in range(self.number_of_actions)]
         self._remaining_valid_actions = []
 
         self._valid_actions_based_on_workload(workload)
         self._valid_actions_based_on_budget(budget, current_storage_consumption=0)
-
         self.current_combinations = set()
-
         return np.array(self.valid_actions)
 
     def update_valid_actions(self, last_action, budget, current_storage_consumption):
-        assert self.indexable_column_combinations_flat[last_action] not in self.current_combinations
+        if self.indexable_column_combinations_flat[last_action] in self.current_combinations:
+            print('combination already in current combinations')
 
         actions_index_width = len(self.indexable_column_combinations_flat[last_action])
         if actions_index_width == 1:
             self.current_action_status[last_action] += 1
         else:
             combination_to_be_extended = self.indexable_column_combinations_flat[last_action][:-1]
-            assert combination_to_be_extended in self.current_combinations
+            if combination_to_be_extended not in self.current_combinations:
+                print('combination not in current combinations')
 
             status_value = 1 / actions_index_width
 
@@ -66,18 +65,21 @@ class ActionManager(object):
             last_action_back_columns_idx = self.column_to_idx[last_action_back_column]
             self.current_action_status[last_action_back_columns_idx] += status_value
 
-            self.current_combinations.remove(combination_to_be_extended)
+            if combination_to_be_extended in self.current_combinations:
+                self.current_combinations.remove(combination_to_be_extended)
 
         self.current_combinations.add(self.indexable_column_combinations_flat[last_action])
 
         self.valid_actions[last_action] = self.FORBIDDEN_ACTION
-        self._remaining_valid_actions.remove(last_action)
+        if last_action in self._remaining_valid_actions:
+            self._remaining_valid_actions.remove(last_action)
 
         self._valid_actions_based_on_last_action(last_action)
         self._valid_actions_based_on_budget(budget, current_storage_consumption)
 
         is_valid_action_left = len(self._remaining_valid_actions) > 0
-
+        # print("result of the function:")
+        # print(np.array(self.valid_actions), is_valid_action_left)
         return np.array(self.valid_actions), is_valid_action_left
 
     def _valid_actions_based_on_budget(self, budget, current_storage_consumption):

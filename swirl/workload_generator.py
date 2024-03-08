@@ -85,6 +85,7 @@ class WorkloadGenerator(object):
                 [list(map(lambda x: [x], self.globally_indexable_columns))],
                 retrieve_plans=True,
             )
+            print(f"Value of embedder.plans: {embedder.plans}")
             self.unknown_query_classes = embedding_utils.which_queries_to_remove(
                 embedder.plans, config["unknown_queries"], random_seed
             )
@@ -251,10 +252,10 @@ class WorkloadGenerator(object):
             workload_tuple = self._generate_random_workload(size, unknown_query_probability)
             unique_workload_tuples.add(workload_tuple)
 
-        validation_tuples = self.rnd.sample(unique_workload_tuples, validation_instances)
+        validation_tuples = self.rnd.sample(list(unique_workload_tuples), validation_instances)
         unique_workload_tuples = unique_workload_tuples - set(validation_tuples)
 
-        test_workload_tuples = self.rnd.sample(unique_workload_tuples, test_instances)
+        test_workload_tuples = self.rnd.sample(list(unique_workload_tuples), test_instances)
         unique_workload_tuples = unique_workload_tuples - set(test_workload_tuples)
 
         assert len(unique_workload_tuples) == train_instances
@@ -340,7 +341,8 @@ class WorkloadGenerator(object):
             workload_query_classes = tuple(query_classes)
             assert len(workload_query_classes) == size
         else:
-            workload_query_classes = tuple(self.rnd.sample(self.available_query_classes, size))
+            workload_query_classes = tuple(self.rnd.sample(list(self.available_query_classes), size))
+
 
         # Create frequencies
         if self.varying_frequencies:

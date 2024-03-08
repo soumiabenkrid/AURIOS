@@ -268,7 +268,7 @@ class BaseRLModel(ABC):
         self._param_load_ops = OrderedDict()
         with self.graph.as_default():
             for param in loadable_parameters:
-                placeholder = tf.placeholder(dtype=param.dtype, shape=param.shape)
+                placeholder = tf.compat.v1.placeholder(dtype=param.dtype, shape=param.shape)
                 # param.name is unique (tensorflow variables have unique names)
                 self._param_load_ops[param.name] = (placeholder, param.assign(placeholder))
 
@@ -1166,7 +1166,7 @@ class TensorboardWriter:
             if self.new_tb_log:
                 latest_run_id = latest_run_id + 1
             save_path = os.path.join(self.tensorboard_log_path, "{}_{}".format(self.tb_log_name, latest_run_id))
-            self.writer = tf.summary.FileWriter(save_path, graph=self.graph)
+            self.writer = tf.summary.create_file_writer(save_path)
         return self.writer
 
     def _get_latest_run_id(self):
@@ -1186,5 +1186,5 @@ class TensorboardWriter:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.writer is not None:
-            self.writer.add_graph(self.graph)
+            # self.writer.add_graph(self.graph)
             self.writer.flush()

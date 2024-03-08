@@ -93,6 +93,7 @@ class PPO2(ActorCriticRLModel):
                          _init_setup_model=_init_setup_model, policy_kwargs=policy_kwargs,
                          seed=seed, n_cpu_tf_sess=n_cpu_tf_sess)
 
+        print('---------------TRY ENTER TO SETUP MODEL------------')
         if _init_setup_model:
             self.setup_model()
 
@@ -107,6 +108,7 @@ class PPO2(ActorCriticRLModel):
         return policy.obs_ph, self.action_ph, policy.deterministic_action
 
     def setup_model(self):
+
         with SetVerbosity(self.verbose):
 
             assert issubclass(self.policy, ActorCriticPolicy), "Error: the input policy for the PPO2 model must be " \
@@ -161,7 +163,7 @@ class PPO2(ActorCriticRLModel):
                     else:
                         # Last possible behavior: clipping range
                         # specific to the value function
-                        self.clip_range_vf_ph = tf.placeholder(tf.float32, [], name="clip_range_vf_ph")
+                        self.clip_range_vf_ph = tf.compat.v1.placeholder(tf.float32, [], name="clip_range_vf_ph")
 
                     if self.clip_range_vf_ph is None:
                         # No clipping
@@ -187,12 +189,12 @@ class PPO2(ActorCriticRLModel):
                                                                       self.clip_range_ph), tf.float32))
                     loss = self.pg_loss - self.entropy * self.ent_coef + self.vf_loss * self.vf_coef
 
-                    tf.summary.scalar('entropy_loss', self.entropy)
-                    tf.summary.scalar('policy_gradient_loss', self.pg_loss)
-                    tf.summary.scalar('value_function_loss', self.vf_loss)
-                    tf.summary.scalar('approximate_kullback-leibler', self.approxkl)
-                    tf.summary.scalar('clip_factor', self.clipfrac)
-                    tf.summary.scalar('loss', loss)
+                    tf.compat.v1.summary.scalar('entropy_loss', self.entropy)
+                    tf.compat.v1.summary.scalar('policy_gradient_loss', self.pg_loss)
+                    tf.compat.v1.summary.scalar('value_function_loss', self.vf_loss)
+                    tf.compat.v1.summary.scalar('approximate_kullback-leibler', self.approxkl)
+                    tf.compat.v1.summary.scalar('clip_factor', self.clipfrac)
+                    tf.compat.v1.summary.scalar('loss', loss)
 
                     with tf.compat.v1.variable_scope('model'):
                         self.params = tf.compat.v1.trainable_variables()
@@ -292,7 +294,10 @@ class PPO2(ActorCriticRLModel):
                 summary, policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = self.sess.run(
                     [self.summary, self.pg_loss, self.vf_loss, self.entropy, self.approxkl, self.clipfrac, self._train],
                     td_map)
-            writer.add_summary(summary, (update * update_fac))
+            # print('---------------ENTER TO SETUP MODEL------------')
+            # print(writer)
+            # print('--------------------------------------------')
+            # writer.add_summary(summary, (update * update_fac))
         else:
             policy_loss, value_loss, policy_entropy, approxkl, clipfrac, _ = self.sess.run(
                 [self.pg_loss, self.vf_loss, self.entropy, self.approxkl, self.clipfrac, self._train], td_map)
@@ -502,7 +507,7 @@ class Runner(AbstractEnvRunner):
         mb_actions = np.asarray(mb_actions)
         mb_values = np.asarray(mb_values, dtype=np.float32)
         mb_neglogpacs = np.asarray(mb_neglogpacs, dtype=np.float32)
-        mb_dones = np.asarray(mb_dones, dtype=np.bool)
+        mb_dones = np.asarray(mb_dones, dtype=bool)
         last_values = self.model.value(self.obs, self.states, self.dones)
         # discount/bootstrap off value fn
         mb_advs = np.zeros_like(mb_rewards)

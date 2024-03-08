@@ -61,6 +61,9 @@ def evaluate_policy(
         while not done:
             action, state = model.predict(obs, state=state, deterministic=deterministic)
             new_obs, reward, done, _info = env.step(action)
+            if not _info[0]:
+                continue
+
             if is_recurrent:
                 obs[0, :] = new_obs
             else:

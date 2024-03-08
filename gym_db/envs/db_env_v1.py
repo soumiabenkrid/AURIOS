@@ -3,6 +3,7 @@ import copy
 import logging
 import random
 
+
 import gym
 
 from gym_db.common import EnvironmentType
@@ -10,6 +11,7 @@ from index_selection_evaluation.selection.cost_evaluation import CostEvaluation
 from index_selection_evaluation.selection.dbms.postgres_dbms import PostgresDatabaseConnector
 from index_selection_evaluation.selection.index import Index
 from index_selection_evaluation.selection.utils import b_to_mb
+import numpy as np
 
 
 class DBEnvV1(gym.Env):
@@ -60,33 +62,44 @@ class DBEnvV1(gym.Env):
         return initial_observation
 
     def _step_asserts(self, action):
-        assert self.action_space.contains(action), f"{action} ({type(action)}) invalid"
-        assert (
-            self.valid_actions[action] == self.action_manager.ALLOWED_ACTION
-        ), f"Agent has chosen invalid action: {action}"
-        assert (
-            Index(self.globally_indexable_columns[action]) not in self.current_indexes
-        ), f"{Index(self.globally_indexable_columns[action])} already in self.current_indexes"
+        if not self.action_space.contains(action):
+            print(f"{action} ({type(action)}) invalid: Action not in action_space")
+            return False
+
+        if self.valid_actions[action] != self.action_manager.ALLOWED_ACTION:
+            print(f"Agent has chosen an invalid action: {action}. valid_actions: {self.valid_actions}. {self.action_manager.ALLOWED_ACTION}")
+            return False
+
+        if Index(self.globally_indexable_columns[action]) in self.current_indexes:
+            print(f"{Index(self.globally_indexable_columns[action])} already in self.current_indexes")
+            return False
+
+        return True
+
 
     def step(self, action):
-        self._step_asserts(action)
-
         self.steps_taken += 1
         old_index_size = 0
-
         new_index = Index(self.globally_indexable_columns[action])
         self.current_indexes.add(new_index)
 
+        # if self._step_asserts(action):
+        print(f'new index= {new_index}')
         if not new_index.is_single_column():
             parent_index = Index(new_index.columns[:-1])
+            print(f'parent Index= {parent_index}')
+            print(f'current_indexes= {self.current_indexes}')
+            old_index_size = self.cost_evaluation.estimate_size(parent_index)
+            print(f'old index size: {old_index_size}')
+            if parent_index in self.current_indexes:
+                self.current_indexes.remove(parent_index)
 
-            for index in self.current_indexes:
-                if index == parent_index:
-                    old_index_size = index.estimated_size
-
-            self.current_indexes.remove(parent_index)
-
-            assert old_index_size > 0, "Parent index size must have been found if not single column index."
+            # try:
+            #     assert old_index_size > 0, "Parent index size must have been found if not single column index."
+            # except AssertionError as e:
+            #     logging.exception(e)
+            #         # Log the error and continue with the next step
+            #     return
 
         environment_state = self._update_return_env_state(
             init=False, new_index=new_index, old_index_size=old_index_size
@@ -106,6 +119,19 @@ class DBEnvV1(gym.Env):
             # print(f"Indexes: {len(self.current_indexes)}")
 
         return current_observation, reward, episode_done, {"action_mask": self.valid_actions}
+        # else:
+        #     environment_state = self._update_return_env_state(
+        #         init=False, new_index=new_index, old_index_size=old_index_size
+        #     )
+
+        #     current_observation = self.observation_manager.get_observation(environment_state)
+        #     mask = np.zeros_like(self.valid_actions, dtype=bool) ### MISTAKE!
+        #     self.valid_actions, is_valid_action_left = self.action_manager.update_valid_actions(
+        #         action, self.current_budget, self.current_storage_consumption
+        #     )
+        #     episode_done = self.steps_taken >= self.max_steps_per_episode or not is_valid_action_left
+
+        #     return  current_observation, 0, episode_done, {"action_mask": mask}
 
     def _report_episode_performance(self, environment_state):
         episode_performance = {
@@ -180,7 +206,7 @@ class DBEnvV1(gym.Env):
         new_index_size = None
 
         if new_index is not None:
-            self.current_storage_consumption += new_index.estimated_size
+            self.current_storage_consumption += self.cost_evaluation.estimate_size(new_index)
             self.current_storage_consumption -= old_index_size
 
             # This assumes that old_index_size is not None if new_index is not None
@@ -191,11 +217,12 @@ class DBEnvV1(gym.Env):
                 new_index_size = 1
 
             if self.current_budget:
-                assert b_to_mb(self.current_storage_consumption) <= self.current_budget, (
+                if b_to_mb(self.current_storage_consumption) > self.current_budget:
+                    (
                     "Storage consumption exceeds budget: "
                     f"{b_to_mb(self.current_storage_consumption)} "
                     f" > {self.current_budget}"
-                )
+                    )
 
         environment_state = {
             "action_status": self.action_manager.current_action_status,

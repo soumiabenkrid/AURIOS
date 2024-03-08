@@ -103,7 +103,10 @@ class Experiment(object):
     def _assign_budgets_to_workloads(self):
         for workload_list in self.workload_generator.wl_testing:
             for workload in workload_list:
+                print("-------- workload budget ---------")
+                print(self.rnd.choice(self.config["budgets"]["validation_and_testing"]))
                 workload.budget = self.rnd.choice(self.config["budgets"]["validation_and_testing"])
+                print(workload.budget)
 
         for workload_list in self.workload_generator.wl_validation:
             for workload in workload_list:
@@ -563,6 +566,7 @@ class Experiment(object):
     # todo: code duplication with validate_model
     def test_model(self, model):
         model_performances = []
+        print("Testing Model--------------------")
         for test_wl in self.workload_generator.wl_testing:
             test_env = self.DummyVecEnv([self.make_env(0, EnvironmentType.TESTING, test_wl)])
             test_env = self.VecNormalize(
@@ -573,6 +577,8 @@ class Experiment(object):
                 model.set_env(self.model.env)
 
             model_performance = self._evaluate_model(model, test_env, len(test_wl))
+            print('model performance -----------------------')
+            print(model_performance)
             model_performances.append(model_performance)
 
         return model_performances, "test"

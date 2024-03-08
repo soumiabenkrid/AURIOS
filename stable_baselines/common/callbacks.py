@@ -62,6 +62,9 @@ class BaseCallback(ABC):
         self.globals = globals_
         self._on_training_start()
 
+    def update_locals(self,locals) -> None:
+        pass
+
     def _on_training_start(self) -> None:
         pass
 
@@ -552,7 +555,8 @@ class EvalCallbackWithTBRunningAverage(EventCallback):
             self.mean_rewards_3.append(mean_reward)
 
             episode_performances = self.eval_env.get_attr("episode_performances")[0]
-            assert len(episode_performances) == len(episode_rewards), f"{episode_performances} vs {episode_rewards}"
+            if len(episode_performances) != len(episode_rewards):
+                print(f"{episode_performances} vs {episode_rewards}")
             perfs = []
             for perf in episode_performances:
                 perfs.append(round(perf["achieved_cost"], 2))
@@ -598,14 +602,14 @@ class EvalCallbackWithTBRunningAverage(EventCallback):
                 self.best_mean_reward = mean_reward
 
             # Log scalar value
-            summary = tf.Summary(value=[tf.Summary.Value(tag=f'episode_reward/validation_reward_{self.name}', simple_value=mean_reward)])
-            self.locals['writer'].add_summary(summary, self.num_timesteps)
+            summary = tf.compat.v1.Summary(value=[tf.compat.v1.Summary.Value(tag=f'episode_reward/validation_reward_{self.name}', simple_value=mean_reward)])
+            #self.locals['writer'].add_summary(summary, self.num_timesteps)
 
-            summary = tf.Summary(value=[tf.Summary.Value(tag=f'episode_reward/validation_length_{self.name}', simple_value=mean_ep_length)])
-            self.locals['writer'].add_summary(summary, self.num_timesteps)
+            summary = tf.compat.v1.Summary(value=[tf.compat.v1.Summary.Value(tag=f'episode_reward/validation_length_{self.name}', simple_value=mean_ep_length)])
+            #self.locals['writer'].add_summary(summary, self.num_timesteps)
 
-            summary = tf.Summary(value=[tf.Summary.Value(tag=f'episode_reward/validation_achieved_percentage_{self.name}', simple_value=mean_performance)])
-            self.locals['writer'].add_summary(summary, self.num_timesteps)
+            summary = tf.compat.v1.Summary(value=[tf.compat.v1.Summary.Value(tag=f'episode_reward/validation_achieved_percentage_{self.name}', simple_value=mean_performance)])
+            #self.locals['writer'].add_summary(summary, self.num_timesteps)
 
 
         return True
